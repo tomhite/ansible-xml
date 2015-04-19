@@ -19,7 +19,7 @@ DOCUMENTATION = '''
 module: xml
 short_description: Manage bits and pieces of XML files or strings
 description:
-  - A CRUD-like interface to managing bits of XML flies. You might also be interested in a brief tutorial, U(http://www.w3schools.com/xpath/). Note that module this does not handle complicated xpath expressions. So limit xpath selectors to simple expressions.
+  - A CRUD-like interface to managing bits of XML files or strings. When modifying the xml tree in a string (xmlstring), the resulting XML is written to the content property of the resulting JSON return value. Register a new varible in your playbook to retrieve that content. You might also be interested in a brief tutorial, U(http://www.w3schools.com/xpath/). Note that module this does not handle complicated xpath expressions. So limit xpath selectors to simple expressions.
 version_added: "1.0"
 options:
   file:
@@ -231,8 +231,19 @@ def abort(msg, m):
 
 def finish(tree, xpath, m, changed=False, msg="", hitcount=0):
     if changed:
-        tree.write(m.params['file'], xml_declaration=True, encoding='UTF-8')
-    m.exit_json(changed=changed,actions={"xpath": xpath, "ensure": m.params['ensure']}, msg=msg, count=hitcount)
+        if m.params['xmlstring']:
+            b = bytes()
+            f = BytesIO(b)
+            tree.write(f, xml_declaration=True, encoding='UTF-8')
+            f.flush()
+            m.exit_json(changed=changed,
+                actions={"xpath": xpath,"ensure": m.params['ensure']},
+                content=f.getvalue().decode('utf-8'),
+                msg=msg,
+                count=hitcount)
+        else:
+            tree.write(m.params['file'], xml_declaration=True, encoding='UTF-8')
+            m.exit_json(changed=changed,actions={"xpath": xpath, "ensure": m.params['ensure']}, msg=msg, count=hitcount)
 
 def main():
     module = AnsibleModule(
